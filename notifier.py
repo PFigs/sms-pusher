@@ -11,7 +11,7 @@ class Notify(object):
     Notify contacts
 
     Allows for pushing sms information to a set of contatct people.
-    It is capable of populating the list of clients by 
+    It is capable of populating the list of clients by
     parsing the contents of an excel file
 
     Attributes:
@@ -35,14 +35,14 @@ class Notify(object):
 
 
     def push_sms(self, content):
-        """ 
+        """
         Pushes sms to contact list
 
         Args:
             content (str) : SMS content
 
         """
-        
+
         if not self.clients:
             return
 
@@ -50,7 +50,7 @@ class Notify(object):
 
         for client in self.clients:
             response = self.nexmo.send_message({'from': self.sender,
-                                            'to': '+{0}'.format(client.phone), 
+                                            'to': '{0}'.format(client.phone),
                                             'text': content})
             self.responses.append(response)
 
@@ -61,7 +61,7 @@ class Notify(object):
 
         Args:
             cfg (obj) :  configparser object
-        
+
         """
         return 'Your password for {0} is {1}'.format(cfg.get('SMS','TITLE'),
                                                    cfg.get('SMS','BODY'))
@@ -74,13 +74,13 @@ class Notify(object):
 
         Args:
             cfg (obj) :  configparser object
-        
+
         """
         return '{0} : {1}'.format(cfg.get('SMS','TITLE'),
                                 cfg.get('SMS','BODY'))
 
     def parser(self, filepath):
-        """ 
+        """
         Parse xlsx
 
         Reads an excel list with the following format
@@ -95,29 +95,29 @@ class Notify(object):
 
         """
         wb = pandas.read_excel(filepath)
-        
+
         for idx, row in wb.iterrows():
-            self.clients.append(Client(row['Name'], 
-                                       row['Surname'], 
+            self.clients.append(Client(row['Name'],
+                                       row['Surname'],
                                        row['Phone']))
-        
+
 
     def print_response(self):
-        """ 
+        """
         Print Responses
 
-        Informs the user about what happened with the 
+        Informs the user about what happened with the
         latest messages that where sent
 
         """
         for response in self.responses:
             response = response['messages'][0]
             print(response)
-            
+
 
 class Client(object):
     """Creates a client object for each contact
-    
+
         Attributes:
         firstname (str) : Contact's firstname
         surname (str) : Contact's surname
@@ -131,8 +131,8 @@ class Client(object):
         self.phone = phone
 
     def __str__(self):
-        return ('{0} {1} +{2}'.format(self.firstname, 
-                                      self.surname, 
+        return ('{0} {1} +{2}'.format(self.firstname,
+                                      self.surname,
                                       self.phone))
 
     def __repr__(self):
@@ -143,8 +143,9 @@ def user_inputs():
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--configFile', default='details.ini', type=str)
+    parser.add_argument('--destination', default=None, type=str)
     args = parser.parse_args()
-    
+
     return args
 
 
@@ -157,10 +158,14 @@ if __name__ == "__main__":
     config = configparser.ConfigParser()
     config.read(args.configFile)
 
-    notify = Notify(sender=config.get('SMS','SENDER'), 
-                    api_key=config.get('NEXMO','API_KEY'), 
+    notify = Notify(sender=config.get('SMS','SENDER'),
+                    api_key=config.get('NEXMO','API_KEY'),
                     api_secret=config.get('NEXMO','API_SECRET'))
-    notify.parser(config.get('SMS','DESTINATION'))
+
+    if args.destination is None:
+        notify.parser(config.get('SMS','DESTINATION'))
+    else:
+        notify.clients.append(Client('CMD', 'Line', args.destination))
 
     notify.push_sms(notify.build_release_content(config))
     notify.print_response()
