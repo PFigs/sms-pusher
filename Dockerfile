@@ -7,5 +7,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-CMD [ "python", "./notifier.py" ]
+ENTRYPOINT [ "python", "./notifier.py" ]
+
+#CMD [ "python", "./notifier.py" ]
 
