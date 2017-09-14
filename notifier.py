@@ -109,10 +109,6 @@ class Notify(object):
         import smtplib
         from email.message import EmailMessage
 
-        msg = EmailMessage()
-        msg['Subject'] = subject
-        msg['From'] = self.fromaddr
-
         # Send the message via a remote SMTP server
         server = smtplib.SMTP(self.smtp_server, self.smtp_port)
         server.ehlo()
@@ -121,13 +117,17 @@ class Notify(object):
 
         if self.clients:
             for client in self.clients:
-                if client.sms is None:
-                    print('Skipping {0} @ {1}'.format(client.name,
-                                                      client.email))
-                    continue
 
-                if client.sms['messages'][0]['status'] == 0:
+                msg = EmailMessage()
+                msg['Subject'] = subject
+                msg['From'] = self.fromaddr
+
+                if client.sms is None:
                     body = in_success
+
+                elif client.sms['messages'][0]['status'] == 0:
+                    body = in_success
+
                 else:
                     body = in_error
 
@@ -175,8 +175,11 @@ class Notify(object):
 
         """
         for client in self.clients:
-            response = client.sms['messages']
-            print('{{{{"client", "{0}"}},"status":{1}}}'.format(client, response))
+            if client.sms:
+                response = client.sms['messages']
+                print('{{{{"client", "{0}"}},"status":{1}}}'.format(client, response))
+            else:
+                print('{{{{"client", "{0}"}},"status":{1}}}'.format(client, None))
 
 
 class Client(object):
@@ -194,6 +197,7 @@ class Client(object):
         self.surname = surname
         self.phone = phone
         self.email = email
+        self.sms = None
 
     def __str__(self):
         return ('{0} {1} {2}'.format(self.firstname,
@@ -210,6 +214,8 @@ def user_inputs():
     parser = argparse.ArgumentParser()
     parser.add_argument('--configuration', default='details.ini', type=str)
     parser.add_argument('--destination', default=None, type=str)
+    parser.add_argument('--email', default=None, type=str)
+    parser.add_argument('--skip_sms', default=None, action='store_true')
     args = parser.parse_args()
 
     return args
@@ -289,10 +295,13 @@ if __name__ == "__main__":
     if args.destination is None:
         notify.parser(destination)
     else:
-        notify.clients.append(Client('CMD', 'Line', args.destination))
+        notify.clients.append(Client('CMD', 'Line',
+                                      args.destination,
+                                      args.email))
 
     # send out notifications to clients
-    notify.push_sms(notify.build_simple_sms(sms_content))
+    if not args.skip_sms:
+        notify.push_sms(notify.build_simple_sms(sms_content))
     notify.send_email_confirmation(subject, in_success, in_error)
 
     # for reference
